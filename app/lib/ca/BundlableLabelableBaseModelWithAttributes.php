@@ -1210,7 +1210,8 @@ class BundlableLabelableBaseModelWithAttributes extends LabelableBaseModelWithAt
 									$vn_primary_id = $va_rep['representation_id'];
 								}
 								
-								$va_initial_values[$va_rep['representation_id']] = array(
+								$item = array(
+									'representation_id' => $va_rep['representation_id'],
 									'idno' => $va_rep['idno'], 
 									'_display' => ($vs_bundle_template && isset($va_display_template_values[$vn_i])) ? $va_display_template_values[$vn_i] : '',
 									'status' => $va_rep['status'], 
@@ -1237,6 +1238,11 @@ class BundlableLabelableBaseModelWithAttributes extends LabelableBaseModelWithAt
 									'fetched_on' => date('c', $va_rep['fetched_on']),
 									'fetched' => $va_rep['fetched_from'] ? _t("<h3>Fetched from:</h3> URL %1 on %2", '<a href="'.$va_rep['fetched_from'].'" target="_ext" title="'.$va_rep['fetched_from'].'">'.$va_rep['fetched_from'].'</a>', date('c', $va_rep['fetched_on'])) : ""
 								);
+								if($pa_options['request']->isAjax()){
+									$va_initial_values[] = $item;
+								}else{
+									$va_initial_values[$va_rep['representation_id']] = $item;
+								}
 		
 								$vn_i++;
 							}
@@ -3915,12 +3921,17 @@ if (!$vb_batch) {
 						
 						$vs_prefix_stub = $vs_placement_code.$vs_form_prefix.'_';
 						$vb_allow_fetching_of_urls = (bool)$this->_CONFIG->get('allow_fetching_of_media_from_remote_urls');
-						$va_rep_ids_sorted = $va_rep_sort_order = explode(';',$po_request->getParameter($vs_prefix_stub.'ObjectRepresentationBundleList', pString));
-						sort($va_rep_ids_sorted, SORT_NUMERIC);
-						
-						
+						$va_rep_ids_sorted = explode(';',$po_request->getParameter($vs_prefix_stub.'ObjectRepresentationBundleList', pString));
 						$va_reps = $this->getRepresentations();
-						
+						$va_rank_order = array();
+						foreach($va_rep_ids_sorted as $va_rep_id) {
+							foreach($va_reps as $va_rep){
+								if ($va_rep['representation_id'] == $va_rep_id) {
+									$va_rank_order[] = $va_rep['rank'];
+								}
+							}
+						}
+						sort($va_rank_order, SORT_NUMERIC);
 						if (!$vb_batch && is_array($va_reps)) {
 							foreach($va_reps as $vn_i => $va_rep) {
 								$this->clearErrors();
@@ -3947,8 +3958,8 @@ if (!$vb_batch) {
 									$vn_center_y = $po_request->getParameter($vs_prefix_stub.'center_y_'.$va_rep['representation_id'], pString);
 									
 									$vn_rank = null;
-									if (($vn_rank_index = array_search($va_rep['representation_id'], $va_rep_sort_order)) !== false) {
-										$vn_rank = $va_rep_ids_sorted[$vn_rank_index];
+									if (($vn_rank_index = array_search($va_rep['representation_id'], $va_rep_ids_sorted)) !== false) {
+										$vn_rank = $va_rank_order[$vn_rank_index];
 									}
 									
 									$this->editRepresentation($va_rep['representation_id'], $vs_path, $vn_locale_id, $vn_status, $vn_access, $vn_is_primary, array('idno' => $vs_idno), array('original_filename' => $vs_original_name, 'rank' => $vn_rank, 'centerX' => $vn_center_x, 'centerY' => $vn_center_y));
@@ -4719,6 +4730,7 @@ if (!$vb_batch) {
 			if (($vn_rank_index = array_search($va_rel_item['relation_id'], $va_rel_sort_order)) !== false) {
 				$vn_rank = $va_rel_ids_sorted[$vn_rank_index];
 			}
+			$vn_rank = !empty($va_rel_item['rank']) ? $va_rel_item['rank'] : $vn_rank;
 			
 			$this->clearErrors();
 			$vn_id = $po_request->getParameter("{$ps_placement_code}{$ps_form_prefix}_id".$va_rel_item[$vs_key], pString);

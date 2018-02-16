@@ -115,9 +115,10 @@ var caUI = caUI || {};
 
 		that.appendToInitialValues = function(initialValues) {
 			jQuery.each(initialValues, function(i, v) {
-				that.initialValues[i] = v;
-				that.addToBundle(i, v, true);
-				return true;
+				var key = v.representation_id ? v.representation_id : i
+				that.initialValues[key] = v
+				that.addToBundle(key, v, true)
+				return true
 			});
 			that.updateBundleFormState();
 		}
